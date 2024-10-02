@@ -9,6 +9,7 @@ import paho.mqtt.client as mqtt
 # Global Settings
 BROKER_PORT = 1883
 TOPIC = "test/topic"
+ACK_TOPIC = "ack/topic"
 MAX_MESSAGES = 1000000
 
 
@@ -37,10 +38,6 @@ def on_message(client, userdata, msg):
 
     payload = msg.payload.decode()
 
-    # Collecting payload size in bytes
-    payload_in_bytes = len(payload.encode('utf-8'))
-    metrics['payload_size'].append(payload_in_bytes)
-
     try:
         data = json.loads(payload)
         sum_result = data['a'] + data['b']
@@ -52,8 +49,20 @@ def on_message(client, userdata, msg):
 
     delivery_time = time.time() - timestamp
     metrics['message_delivery_time'].append(delivery_time)
+
+    # Collecting payload size in bytes
+    payload_in_bytes = len(payload.encode('utf-8'))
+    metrics['payload_size'].append(payload_in_bytes)
+
     message_count += 1
     print(f"Menssagem recebida | Tempo de entrega: {delivery_time:.4f} segundos")
+
+    # Return Ackonowledgment of Sucessful Message
+    acknowledgment_data = {
+        "status": "acknowledged",
+        "timestamp": timestamp          # Sending back the original timestamp to track RTT.
+    }
+    client.publish(ACK_TOPIC, json.dumps(acknowledgment_data))
 
     # Stop the broker after receiving the maximum number of messages
     if message_count >= MAX_MESSAGES:
