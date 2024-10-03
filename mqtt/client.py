@@ -1,3 +1,4 @@
+"""O cliente é um agente que se conecta ao broker para enviar mensagens pelo canal."""
 import time
 import json
 
@@ -6,23 +7,24 @@ import paho.mqtt.client as mqtt
 from random import randint
 
 
-# Global Settings
-BROKER = "localhost"
-BROKER_PORT = 1883
-TOPIC = "test/topic"
+# Constantes
 NUM_MESSAGES = 10000
-
-connection_time = 0
+BROKER = "localhost"
+TOPIC = "test/topic"
+BROKER_PORT = 1883
+CONNECTION_TIME = 0     # Métrica de Tempo para Conexão
 
 
 # Client Functions
 def on_connect(client, userdata, flags, rc):
-    global connection_time
-    connection_time = time.time() - userdata['connect_start_time']
+    global CONNECTION_TIME
+    CONNECTION_TIME = time.time() - userdata['connect_start_time']
     print("Conectado ao Broker Resultado de Código " + str(rc))
+
 
 def on_publish(client, userdata, mid):
     print(f"Mensagem Publicada com ID {mid}")
+
 
 def publish_messages():
     for i in range(NUM_MESSAGES):
@@ -38,7 +40,6 @@ def publish_messages():
     client.disconnect()
 
 
-# Client
 client = mqtt.Client()
 client.user_data_set({'connect_start_time': time.time()})
 client.on_connect = on_connect
@@ -52,4 +53,4 @@ time.sleep(1)
 publish_messages()
 
 print(f"\n--- Métricas ---")
-print(f"Tempo para Conexão: {connection_time:.4f} segundos")
+print(f"Tempo para Conexão: {CONNECTION_TIME:.4f} segundos")

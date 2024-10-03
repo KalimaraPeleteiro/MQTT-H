@@ -1,3 +1,4 @@
+"O listener é um agente que se inscreve no canal de confirmação e mede o RTT"
 import time
 import json
 import statistics
@@ -5,27 +6,26 @@ import statistics
 import paho.mqtt.client as mqtt
 
 
-# Global Settings
+# Constantes
+MAX_MESSAGES = 1000000
 BROKER = "localhost"
 TOPIC = "test/topic"
 ACK_TOPIC = "ack/topic"
-MAX_MESSAGES = 1000000
-
-
-metrics = {
+METRICS = {
     'rtt_time': []
 }
+MESSAGE_COUNT = 0
 
-message_count = 0
 
 # Client Functions
 def on_connect(client, userdata, flags, rc):
     print("Connectado ao Broker Resultado de Código " + str(rc))
 
-def on_message(client, userdata, msg):
-    global message_count
 
-    message_count += 1
+def on_message(client, userdata, msg):
+    global MESSAGE_COUNT
+
+    MESSAGE_COUNT += 1
 
     if msg.topic == ACK_TOPIC:
         payload = msg.payload.decode()
@@ -37,10 +37,9 @@ def on_message(client, userdata, msg):
             return
         print(f"Timestamp Recebido {timestamp}")
         rtt = time.time() - timestamp
-        metrics["rtt_time"].append(rtt)
+        METRICS["rtt_time"].append(rtt)
 
 
-# Client
 listener = mqtt.Client()
 listener.on_connect = on_connect
 listener.on_message = on_message
@@ -51,12 +50,12 @@ listener.subscribe(ACK_TOPIC)
 listener.loop_start()
 
 
-while message_count < MAX_MESSAGES:
+while MESSAGE_COUNT < MAX_MESSAGES:
     time.sleep(0.1)
 
 listener.loop_stop()
 
 
-average_rtt_time = statistics.mean(metrics['rtt_time']) if metrics['rtt_time'] else 0
+average_rtt_time = statistics.mean(METRICS['rtt_time']) if METRICS['rtt_time'] else 0
 print(f"\n--- Métricas ---")
 print(f"Média de Round Trip Time (RTT): {average_rtt_time:.4f} segundos")
