@@ -1,116 +1,81 @@
-"""O broker é o servidor na arquitetura MQTT."""
-import time
-import json
-import psutil
-import statistics
-import uuid
+import socket
+import struct
+import signal
+import sys
 
-import tenseal as ts
-import paho.mqtt.client as mqtt
+from utils.connection_package import extract_connect_message_fields
 
 
 # Constantes
-MAX_MESSAGES = 100
-BROKER_PORT = 1883
-TOPIC = "test/topic"
-ACK_TOPIC = "ack/topic"
-MESSAGE_COUNT = 0
-METRICS = {
-    'message_delivery_time': [],
-    'payload_size': []
-}
-CLIENT_KEYS = dict()
+CLIENTS = dict()
+SERVER_SOCKET = None
 
 
-# Callbacks do Broker
-def on_connect(client, userdata, flags, rc):
-    if not client._client_id:
-        print("Conexão com cliente com ID vazio, recusando...")
-        return
+def signal_handler(sig, frame):
+    global SERVER_SOCKET
+
+    print("\nEncerrando o Broker...")
+    if SERVER_SOCKET:
+        SERVER_SOCKET.close()
+    sys.exit(0)
+
+
+def start_broker(host='0.0.0.0', port=1883):
+    global SERVER_SOCKET
+    SERVER_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    SERVER_SOCKET.bind((host, port))
+    SERVER_SOCKET.listen()
+    SERVER_SOCKET.settimeout(1.0)
+
+    print(f"Broker inicializado em {host}:{port}.")
+
+    # Loop Infinito de escuta.
+    while True:
+        try:
+            client_socket, address = SERVER_SOCKET.accept()
+            print(f"Conexão vinda de {address}.")
+            handle_client(client_socket)
+        except socket.timeout:
+            continue
+        
+
+def handle_client(client_socket):
+    while True:
+        message = client_socket.recv(1024)
+        if not message:
+            break
     
-    context = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=4096, plain_modulus=256)
-    context.global_scale = 2 ** 40
-    CLIENT_KEYS[client._client_id] = context.public_key()
-
-    print(f"Cliente Conectado: {client._client_id} | Resultado da Conexão: {rc}")
-
-
-def on_disconnect(client, userdata, rc):
-    print(f"Cliente Disconectado: {client._client_id}")
+        # Em MQTT, o primeiro byte define o tipo do pacote.
+        packet_type = message[0] >> 4
+        if packet_type == 1:
+            handle_connect(client_socket, message)
+        elif packet_type == 3:
+            pass
 
 
-def on_publish(client, userdata, mid):
-    print(f"Mensagem publicada com ID {mid}")
+def handle_connect(client_socket, message):
+    print("Conexão Detectada!")
+    print(f"Mensagem: {message.hex()}")
 
-
-def on_message(client, userdata, msg):
-    global MESSAGE_COUNT
-
-    payload = msg.payload.decode()
-
-    try:
-        data = json.loads(payload)
-        sum_result = data['a'] + data['b']
-        print(f"O resultado de {data['a']} + {data['b']} é {sum_result}")
-        timestamp = data['timestamp']
-    except (json.JSONDecodeError, KeyError) as e:
-        print(f"Erro ao decodificar mensagem: {e}")
+    fields = extract_connect_message_fields(message)
+    if fields is None:
+        print("Erro ao extrair campos da mensagem de conexão.")
         return
 
-    delivery_time = time.time() - timestamp
-    METRICS['message_delivery_time'].append(delivery_time)
+    print(f"Fields\n{fields}")    
+    protocol_name = fields['protocol_name']
+    client_id = fields['client_id']
 
-    # Coletando o tamanho do Payload em Bytes.
-    payload_in_bytes = len(payload.encode('utf-8'))
-    METRICS['payload_size'].append(payload_in_bytes)
+    print(f"Mensagem de Conexão com protocolo {protocol_name}, e ID de cliente {client_id}.")
 
-    MESSAGE_COUNT += 1
-    print(f"Menssagem recebida | Tempo de entrega: {delivery_time:.4f} segundos")
+    # Resposta de Connect Acception
+    connack_response = struct.pack("!BB", 32, 0)
+    client_socket.send(connack_response)
+    print(f"Enviando {connack_response}")
 
-    # Retorno de Sucesso para calcular RTT
-    acknowledgment_data = {
-        "status": "acknowledged",
-        "timestamp": timestamp          
-    }
-    client.publish(ACK_TOPIC, json.dumps(acknowledgment_data))
-
-    # Broker é interrompido após número máximo de mensagens.
-    if MESSAGE_COUNT >= MAX_MESSAGES:
-        client.disconnect()
+    CLIENTS[client_socket] = []
 
 
-client_id = f"broker-{uuid.uuid4()}"
-broker = mqtt.Client(client_id=client_id)
-
-broker.on_connect = on_connect
-broker.on_disconnect = on_disconnect
-broker.on_publish = on_publish
-broker.on_message = on_message
-
-broker.start_time = time.time()
-broker.connect('0.0.0.0', BROKER_PORT)
-broker.subscribe(TOPIC)
-broker.loop_start()
-
-print("Broker está rodando, aguardando mensagens...")
-
-while MESSAGE_COUNT < MAX_MESSAGES:
-    time.sleep(0.1)
-
-broker.loop_stop()
-
-cpu_usage = psutil.cpu_percent()
-memory_usage = psutil.virtual_memory().percent
-average_delivery_time = statistics.mean(METRICS['message_delivery_time']) if METRICS['message_delivery_time'] else 0
-average_payload_size = statistics.mean(METRICS['payload_size']) if METRICS['payload_size'] else 0
-
-print(f"\n--- Métricas ---")
-print(f"Uso de CPU: {cpu_usage}%")
-print(f"Uso de Memória: {memory_usage}%")
-print(f"Média de Entrega de Mensagens: {average_delivery_time:.4f} segundos")
-print(f"Média de Tamanho das Mensagens: {average_payload_size:4f} Bytes")
-
-
-print("HE")
-print("Public Keys")
-print(CLIENT_KEYS)
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    start_broker()

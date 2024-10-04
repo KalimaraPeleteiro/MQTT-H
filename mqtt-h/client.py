@@ -2,6 +2,7 @@
 import time
 import json
 import uuid
+import sys
 
 import paho.mqtt.client as mqtt
 
@@ -10,13 +11,13 @@ from random import randint
 
 # Constantes
 NUM_MESSAGES = 10
-BROKER = "0.0.0.0"
+BROKER = "localhost"
 TOPIC = "test/topic"
 BROKER_PORT = 1883
 CONNECTION_TIME = 0     # Métrica de Tempo para Conexão
 
 
-# Callbacks de Cliente
+# Client Functions
 def on_connect(client, userdata, flags, rc):
     global CONNECTION_TIME
     CONNECTION_TIME = time.time() - userdata['connect_start_time']
@@ -41,17 +42,21 @@ def publish_messages():
     client.disconnect()
 
 
-client_id = f"client-{uuid.uuid4()}"
-client = mqtt.Client(client_id=client_id)
-print(f"Iniciando Cliente com id: {client_id}")
+client_id = uuid.uuid4()
+client = mqtt.Client(client_id=f"client-{client_id}")
 client.user_data_set({'connect_start_time': time.time()})
 client.on_connect = on_connect
 client.on_publish = on_publish
 
-client.connect(BROKER, BROKER_PORT)
-client.loop_start()
+if client.connect(BROKER, BROKER_PORT) != 0:
+    print("Falha ao Conectar ao Broker!")
+    sys.exit(0)
+else:
+    client.loop_start()
+    time.sleep(1)
 
-publish_messages()
+    publish_messages()
+
 
 print(f"\n--- Métricas ---")
 print(f"Tempo para Conexão: {CONNECTION_TIME:.4f} segundos")
