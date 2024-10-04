@@ -1,4 +1,0 @@
-Conexões Ativas, Número Total de Mensagens, Tempo Médio de Entrega, Tamanho Médio das Mensagens, Tempo para Conexão, RTT Médio
-1, 100, 0.0007 Segundos, 52.61 Bytes, 0.0030 Segundos, 0.0012 Segundos
-10, 10000, 0.0015 Segundos, 52.52 Bytes, 0.0029 Segundos, 0.0217 Segundos
-100, 1000000, 0.0046 Segundos, 52.51 Bytes, 0.014075 Segundos, 0.0106 Segundos
