@@ -1,3 +1,5 @@
+"""Lidando com Conexões com Clientes."""
+
 import struct
 
 
@@ -7,12 +9,15 @@ def extract_connect_message_fields(message):
     
     1 Byte -> Header Fixo
     1 Byte -> Tamanho Restante
-    2 Bytes -> Tamanho do Nome do Protocolo
+    2 Bytes -> Tamanho do Nome do Protocolo (N)
     N Bytes -> Nome do Protocolo
     1 Byte -> Nível do Protocolo
     1 Byte -> Flags de Conexão
     2 Bytes -> Keep Alive?
-    Variável de Identificação do Cliente.
+
+    Variável de Identificação do Cliente (Pode existir ou não).
+    2 Bytes -> Tamanho do Client ID (M)
+    M Bytes -> Client ID [Nesse caso, será um UUID04]
     """
 
     fields = {}

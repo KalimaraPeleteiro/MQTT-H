@@ -4,6 +4,7 @@ import signal
 import sys
 
 from utils.connection_package import extract_connect_message_fields
+from utils.he import generate_keys
 
 
 # Constantes
@@ -12,6 +13,7 @@ SERVER_SOCKET = None
 
 
 def signal_handler(sig, frame):
+    """Encerra o Broker em um CTRL + C."""
     global SERVER_SOCKET
 
     print("\nEncerrando o Broker...")
@@ -64,19 +66,20 @@ def handle_connect(client_socket, message):
 
     fields = extract_connect_message_fields(message)
     if fields is None:
-        print("Erro ao extrair campos da mensagem de conexão.")
+        print(f"Erro ao extrair campos da mensagem de conexão. Mensagem: {message.hex()}")
         return
 
-    protocol_name = fields['protocol_name']
-    client_id = fields['client_id']
-    print(f"Mensagem de Conexão com protocolo {protocol_name}, e ID de cliente {client_id}.")
+    print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
+
+    print("Gerando Par de Chaves Criptográficas...")
+    pubKey, privKey = generate_keys()
+    CLIENTS[fields["client_id"]] = {"public_key": pubKey, "private_key": privKey}
 
     # Resposta de Connect Acception (CONNACK)
     connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
     client_socket.send(connack_response)
-    print(f"Enviando {connack_response}")
+    print("Enviando CONNACK...\n")
 
-    CLIENTS[client_socket] = []
 
 
 if __name__ == "__main__":
