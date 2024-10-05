@@ -60,8 +60,9 @@ if client.connect(BROKER, BROKER_PORT) != 0:
 else:
     client.loop_start()
     time.sleep(1)
+    client.publish("he/retrieve-keys", "a")
 
-    publish_messages()
+    #publish_messages()
 
 
 print(f"\n--- Métricas ---")

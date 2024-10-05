@@ -3,8 +3,9 @@ import struct
 import signal
 import sys
 
-from utils.connection_package import extract_connect_message_fields
 from utils.he import generate_keys
+from utils.connection_package import extract_connect_message_fields
+from utils.publish_package import extract_publish_message_fields
 
 
 # Constantes
@@ -57,7 +58,7 @@ def handle_client(client_socket):
         if packet_type == 1:
             handle_connect(client_socket, message)
         elif packet_type == 3:
-            pass
+            handle_publish(client_socket, message)
 
 
 def handle_connect(client_socket, message):
@@ -69,17 +70,31 @@ def handle_connect(client_socket, message):
         print(f"Erro ao extrair campos da mensagem de conexão. Mensagem: {message.hex()}")
         return
 
-    print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
+    # print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
 
     print("Gerando Par de Chaves Criptográficas...")
     pubKey, privKey = generate_keys()
-    CLIENTS[fields["client_id"]] = {"public_key": pubKey, "private_key": privKey}
+    CLIENTS[client_socket] = {"client_id": fields["client_id"], "public_key": pubKey, "private_key": privKey}
 
     # Resposta de Connect Acception (CONNACK)
     connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
     client_socket.send(connack_response)
     print("Enviando CONNACK...\n")
 
+
+def handle_publish(client_socket, message):
+    print("\nMensagem Recebida!")
+
+    fields = extract_publish_message_fields(message)
+    if fields is None:
+        print(f"Erro ao extrair campos da mensagem: {message.hex()}")
+        return
+
+    # print(f"Mensagem recebida no tópico '{fields['topic']}': {fields['payload'].decode('utf-8')}")
+
+    if fields['topic'] == "he/retrieve-keys":
+        if client_socket in CLIENTS.keys():
+            print(f"Recebendo mensagem de cliente de chave pública {CLIENTS[client_socket]['public_key']}")
 
 
 if __name__ == "__main__":
