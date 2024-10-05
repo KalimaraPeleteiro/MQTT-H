@@ -1,3 +1,5 @@
 venv
 metrics.txt
 TO-DO.txt
+__pycache__
+*.pyc

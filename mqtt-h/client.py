@@ -3,11 +3,15 @@ import time
 import json
 import uuid
 import sys
+import logging  
 
 import paho.mqtt.client as mqtt
 
 from random import randint
 
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Constantes
 NUM_MESSAGES = 10
@@ -41,12 +45,14 @@ def publish_messages():
     
     client.disconnect()
 
-
 client_id = uuid.uuid4()
 client = mqtt.Client(client_id=f"client-{client_id}")
 client.user_data_set({'connect_start_time': time.time()})
 client.on_connect = on_connect
 client.on_publish = on_publish
+
+client.enable_logger()
+
 
 if client.connect(BROKER, BROKER_PORT) != 0:
     print("Falha ao Conectar ao Broker!")

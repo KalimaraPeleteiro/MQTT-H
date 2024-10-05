@@ -15,6 +15,11 @@ def signal_handler(sig, frame):
     global SERVER_SOCKET
 
     print("\nEncerrando o Broker...")
+
+    if CLIENTS != {}:
+        print(f"Lista de Clientes")
+        print(CLIENTS)
+
     if SERVER_SOCKET:
         SERVER_SOCKET.close()
     sys.exit(0)
@@ -54,22 +59,20 @@ def handle_client(client_socket):
 
 
 def handle_connect(client_socket, message):
-    print("Conexão Detectada!")
-    print(f"Mensagem: {message.hex()}")
+    print("\nConexão Detectada!")
+    # print(f"Mensagem: {message.hex()}")
 
     fields = extract_connect_message_fields(message)
     if fields is None:
         print("Erro ao extrair campos da mensagem de conexão.")
         return
 
-    print(f"Fields\n{fields}")    
     protocol_name = fields['protocol_name']
     client_id = fields['client_id']
-
     print(f"Mensagem de Conexão com protocolo {protocol_name}, e ID de cliente {client_id}.")
 
-    # Resposta de Connect Acception
-    connack_response = struct.pack("!BB", 32, 0)
+    # Resposta de Connect Acception (CONNACK)
+    connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
     client_socket.send(connack_response)
     print(f"Enviando {connack_response}")
 
