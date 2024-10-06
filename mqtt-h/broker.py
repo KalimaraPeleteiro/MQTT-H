@@ -3,7 +3,7 @@ import struct
 import signal
 import sys
 
-from utils.he import generate_keys
+from utils.he import generate_context
 from utils.connection_package import extract_connect_message_fields
 from utils.publish_package import extract_publish_message_fields
 
@@ -73,8 +73,8 @@ def handle_connect(client_socket, message):
     # print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
 
     print("Gerando Par de Chaves Criptográficas...")
-    pubKey, privKey = generate_keys()
-    CLIENTS[client_socket] = {"client_id": fields["client_id"], "public_key": pubKey, "private_key": privKey}
+    context = generate_context()
+    CLIENTS[client_socket] = {"client_id": fields["client_id"], "he_context": context}
 
     # Resposta de Connect Acception (CONNACK)
     connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
@@ -92,9 +92,18 @@ def handle_publish(client_socket, message):
 
     # print(f"Mensagem recebida no tópico '{fields['topic']}': {fields['payload'].decode('utf-8')}")
 
-    if fields['topic'] == "he/retrieve-keys":
+    if fields['topic'] == "he/retrieve-key":
         if client_socket in CLIENTS.keys():
-            print(f"Recebendo mensagem de cliente de chave pública {CLIENTS[client_socket]['public_key']}")
+            context = CLIENTS[client_socket]['he_context']
+
+            response_topic = "he/public-key"
+            response_payload = context.serialize(save_public_key = True, save_secret_key = False)
+
+            response_message = struct.pack("!B", 0x30)
+            response_message += struct.pack("!B", len(response_topic)) + response_topic.encode()
+            response_message += struct.pack("!H", len(response_payload)) + response_payload
+
+            client_socket.send(response_message)
 
 
 if __name__ == "__main__":
