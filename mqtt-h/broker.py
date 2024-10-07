@@ -12,6 +12,7 @@ from utils.publish_package import extract_publish_message_fields
 # Constantes
 CLIENTS = dict()
 SERVER_SOCKET = None
+BATCH_SIZE = 4096
 
 
 def signal_handler(sig, frame):
@@ -99,6 +100,19 @@ def handle_connect(client_socket, message):
     print("Enviando CONNACK...\n")
 
 
+def encode_remaining_length(length):
+    encoded = bytearray()
+    while True:
+        byte = length % 128
+        length = length // 128
+        if length > 0:
+            byte |= 128
+        encoded.append(byte)
+        if length == 0:
+            break
+    return encoded
+
+
 def handle_publish(client_socket, message):
     """
     Lida com requisições de publicação. Extrai os campos da mensagem, e se ela for válida, gerencia a depender do tópico da mensagem.
@@ -119,15 +133,35 @@ def handle_publish(client_socket, message):
     if fields['topic'] == "he/retrieve-key":
         if client_socket in CLIENTS.keys():
             context = CLIENTS[client_socket]['he_context']
-
             response_topic = "he/public-key"
-            response_payload = context.serialize(save_public_key = True, save_secret_key = False)
+            serialized_context = context.serialize(save_public_key = True, save_secret_key = False)
 
-            response_message = struct.pack("!B", 0x30)
-            response_message += struct.pack("!B", len(response_topic)) + response_topic.encode()
-            response_message += struct.pack("!H", len(response_payload)) + response_payload
+            total_size = len(serialized_context)
+            num_batches = (total_size + BATCH_SIZE - 1) // BATCH_SIZE
 
-            client_socket.send(response_message)
+            for i in range(num_batches):
+                start_index = i * BATCH_SIZE
+                end_index = min(start_index + BATCH_SIZE, total_size)
+                batch_payload = serialized_context[start_index:end_index]
+
+                # Construct MQTT PUBLISH packet
+                packet_type = 0x30  # PUBLISH
+                topic_len = len(response_topic)
+                remaining_length = 2 + topic_len + len(batch_payload)  # 2 bytes for topic length
+
+                # Fixed header
+                response_message = struct.pack("!B", packet_type)
+                response_message += encode_remaining_length(remaining_length)
+
+                # Variable header
+                response_message += struct.pack("!H", topic_len)
+                response_message += response_topic.encode()
+
+                # Payload
+                response_message += batch_payload
+
+                client_socket.send(response_message)
+                print(f"Enviando o batch {i + 1}/{num_batches}, com o tamanho de {len(batch_payload)} B")
 
 
 if __name__ == "__main__":

@@ -5,16 +5,16 @@ import uuid
 import sys
 import logging  
 
+import tenseal as ts
 import paho.mqtt.client as mqtt
 
 
 # Constantes
-NUM_MESSAGES = 10
 BROKER = "localhost"
-TOPIC = "test/topic"
 BROKER_PORT = 1883
 CONNECTION_TIME = 0     # Métrica de Tempo para Conexão
 CLIENT_ID = uuid.uuid4()
+RECEIVED_CONTEXT_BATCHES = []
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -32,9 +32,14 @@ def on_publish(client, userdata, mid):
 
 def on_message(client, userdata, msg):
     if msg.topic == "he/public-key":
-        context = msg.payload.decode()
-        print(f"Contexto Recebido: {context}")
-        print(f"Tipo do contexto: {type(context)}")
+        batch_payload = msg.payload
+        RECEIVED_CONTEXT_BATCHES.append(batch_payload)
+        print(f"Batch recebido: {len(batch_payload)} Bytes.")
+
+        if len(batch_payload) < 4096:
+            complete_context = b''.join(RECEIVED_CONTEXT_BATCHES)
+            he_context = ts.Context.load(complete_context)
+            print(f"Contexto Completo Recebido e Re-estruturado.")
 
 
 client = mqtt.Client(client_id=f"client-{CLIENT_ID}")
