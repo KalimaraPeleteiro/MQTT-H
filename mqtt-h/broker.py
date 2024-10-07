@@ -1,3 +1,4 @@
+"""O Broker age como o servidor na arquitetura do MQTT."""
 import socket
 import struct
 import signal
@@ -19,16 +20,19 @@ def signal_handler(sig, frame):
 
     print("\nEncerrando o Broker...")
 
-    if CLIENTS != {}:
-        print(f"Lista de Clientes")
-        print(CLIENTS)
-
     if SERVER_SOCKET:
         SERVER_SOCKET.close()
     sys.exit(0)
 
 
 def start_broker(host='0.0.0.0', port=1883):
+    """
+    Inicia o Broker.
+    
+    host: Endereço de Início
+    port: Porta em que será iniciado.
+    """
+
     global SERVER_SOCKET
     SERVER_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     SERVER_SOCKET.bind((host, port))
@@ -37,7 +41,7 @@ def start_broker(host='0.0.0.0', port=1883):
 
     print(f"Broker inicializado em {host}:{port}.")
 
-    # Loop Infinito de escuta.
+    # Loop Infinito de escuta (Esperando por Mensagens).
     while True:
         try:
             client_socket, address = SERVER_SOCKET.accept()
@@ -48,6 +52,12 @@ def start_broker(host='0.0.0.0', port=1883):
         
 
 def handle_client(client_socket):
+    """
+    Lida com mensagens que chegam ao broker.
+
+    client_socket: O socket do cliente que enviou a mensagem.
+    """
+
     while True:
         message = client_socket.recv(1024)
         if not message:
@@ -62,15 +72,22 @@ def handle_client(client_socket):
 
 
 def handle_connect(client_socket, message):
-    print("\nConexão Detectada!")
-    # print(f"Mensagem: {message.hex()}")
+    """
+    Lida com requisições de conexão. Extrai os campos da mensagem, e se ela for válida, gera um par de chaves criptográficas e dedica aquele cliente.
+    Caso a mensagem seja válida, devolve um resultado de Conexão Aceita (CONNACK) para o cliente.
+
+    client_socket: O socket do cliente que enviou a mensagem.
+    message: Mensagem enviada.
+    """
+
+    print("\nConexão Requisitada!")
 
     fields = extract_connect_message_fields(message)
     if fields is None:
         print(f"Erro ao extrair campos da mensagem de conexão. Mensagem: {message.hex()}")
         return
 
-    # print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
+    print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
 
     print("Gerando Par de Chaves Criptográficas...")
     context = generate_context()
@@ -83,6 +100,13 @@ def handle_connect(client_socket, message):
 
 
 def handle_publish(client_socket, message):
+    """
+    Lida com requisições de publicação. Extrai os campos da mensagem, e se ela for válida, gerencia a depender do tópico da mensagem.
+
+    client_socket: O socket do cliente que enviou a mensagem.
+    message: Mensagem enviada.
+    """
+
     print("\nMensagem Recebida!")
 
     fields = extract_publish_message_fields(message)
@@ -90,7 +114,7 @@ def handle_publish(client_socket, message):
         print(f"Erro ao extrair campos da mensagem: {message.hex()}")
         return
 
-    # print(f"Mensagem recebida no tópico '{fields['topic']}': {fields['payload'].decode('utf-8')}")
+    print(f"Mensagem recebida no tópico '{fields['topic']}'.")
 
     if fields['topic'] == "he/retrieve-key":
         if client_socket in CLIENTS.keys():

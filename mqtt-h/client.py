@@ -7,11 +7,6 @@ import logging
 
 import paho.mqtt.client as mqtt
 
-from random import randint
-
-
-logging.basicConfig(level=logging.DEBUG)
-
 
 # Constantes
 NUM_MESSAGES = 10
@@ -21,6 +16,7 @@ BROKER_PORT = 1883
 CONNECTION_TIME = 0     # Métrica de Tempo para Conexão
 CLIENT_ID = uuid.uuid4()
 
+logging.basicConfig(level=logging.DEBUG)
 
 
 # Client Callbacks

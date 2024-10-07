@@ -1,5 +1,4 @@
 """Lidando com Envios de Mensagens por Publicação"""
-
 import struct 
 
 

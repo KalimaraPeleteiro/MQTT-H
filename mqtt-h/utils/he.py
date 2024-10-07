@@ -1,5 +1,4 @@
 """Funções Homomórficas de Criptografia"""
-
 import tenseal as ts
 
 
