@@ -18,6 +18,7 @@ class MQTTHBroker:
         self.host = host
         self.port = port
         self.clients = {}
+        self.subscriptions = {}
         self.server_socket = None
         self.strict_mode = strict_mode
 
@@ -43,6 +44,9 @@ class MQTTHBroker:
         
         if self.server_socket:
             self.server_socket.close()
+        if self.subscriptions != {}:
+            print("Inscrições")
+            print(self.subscriptions)
         sys.exit(0)
     
 
@@ -82,6 +86,8 @@ class MQTTHBroker:
                 self.handle_connect(client_socket, message)
             elif packet_type == 3:
                 self.handle_publish(client_socket, message)
+            elif packet_type == 8:
+                self.handle_subscribe(client_socket, message)
         
     
     def handle_connect(self, client_socket, message):
@@ -320,6 +326,62 @@ class MQTTHBroker:
             if length == 0:
                 break
         return encoded
+    
+
+    def handle_subscribe(self, client_socket, message):
+        """
+        Lida com requisições de inscrição. Extrai os campos da mensagem e armazena a inscrição do cliente.
+        Ao fim, uma resposta SUBACK é enviada.
+
+        client_socket: O socket do cliente que enviou a mensagem.
+        message: Mensagem enviada.
+        """
+        print("\nInscrição Requisitada!")
+
+        fields = self.extract_subscribe_message_fields(message)
+        topic = fields['topic']
+
+        print(f'Um cliente está se inscrevendo no tópico {topic}.')
+        if topic not in self.subscriptions.keys():
+            self.subscriptions[topic] = []
+        self.subscriptions[topic].append(client_socket)
+
+        # Retornando SUBACK (Subscription Accept Message)
+        packet_type = 0x90  
+        message_id = struct.unpack("!H", fields['message_id'].to_bytes(2, 'big'))[0] 
+        qos = fields['qos'] 
+
+        suback_response = struct.pack("!BBH", packet_type, 3, message_id) + struct.pack("!B", qos)
+
+        client_socket.send(suback_response)
+        print("Enviando SUBACK...\n")
+    
+
+    @staticmethod
+    def extract_subscribe_message_fields(message):
+        """
+        Lida com Pacotes de Inscrição. O formato de um pacote SUBSCRIBE é:
+
+        - Header Fixo (1 Byte)
+        - Tamanho do Pacote (1 Byte)
+        - Identificador da Mensagem (2 Bytes)
+        - Tamanho do Nome do Tópico (2 Bytes)
+        - Nome do Tópico (N Bytes)
+        - QoS (Quality of Service) (1 Byte)
+        """
+        fields = {}
+
+        try:
+            fields["message_id"] = struct.unpack("!H",message[2:4])[0]
+            topic_length = struct.unpack("!H", message[4:6])[0]
+            fields["topic"] = message[6:6 + topic_length].decode('utf-8')
+            fields["qos"] = message[6 + topic_length]
+        except (struct.error, IndexError) as e:
+            print(f"Erro ao extrair campos da mensagem de inscrição: {e}.")
+            return None
+
+        return fields
+
 
 
 
