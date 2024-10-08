@@ -236,8 +236,8 @@ class MQTTHBroker:
         batches, pois o contexto ultrapassa os 400KB, na maioria dos casos.
         """
         if client_socket in self.clients.keys():
-            context = self.clients[client_socket]['he_context']
-            response_topic = "he/public-key"
+            context, client_id = self.clients[client_socket]['he_context'], self.clients[client_socket]['client_id']
+            response_topic = f"he/public-key/{client_id}"
             serialized_context = context.serialize(save_public_key = True, save_secret_key = False)
 
             total_size = len(serialized_context)

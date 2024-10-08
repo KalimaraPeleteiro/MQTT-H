@@ -55,7 +55,7 @@ if client.connect(BROKER, BROKER_PORT) != 0:
     sys.exit(0)
 else:
     client.loop_start()
-    client.subscribe("he/public-key")
+    client.subscribe(f"he/public-key/{CLIENT_ID}")
     time.sleep(1)
     client.publish("he/retrieve-key", str(CLIENT_ID))
     time.sleep(2)
