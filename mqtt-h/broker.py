@@ -21,6 +21,9 @@ class MQTTHBroker:
         self.server_socket = None
         self.strict_mode = strict_mode
 
+        if self.strict_mode is False:
+            self.he_context = None
+
 
     def start(self):
         """Função que inicializa o broker."""
@@ -98,14 +101,28 @@ class MQTTHBroker:
 
         print(f"Mensagem de Conexão com protocolo {fields['protocol_name']}, e ID de cliente {fields['client_id']}.")
 
-        print("Gerando Par de Chaves Criptográficas...")
-        context = self.generate_context()
-        self.clients[client_socket] = {"client_id": fields["client_id"], "he_context": context}
+        if self.strict_mode is True:
+            print("[MODO ESTRITO] Gerando Par de Chaves Criptográficas...")
+            context = self.generate_context()
+            self.clients[client_socket] = {"client_id": fields["client_id"], "he_context": context}
 
-        # Resposta de Connect Acception (CONNACK)
-        connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
-        client_socket.send(connack_response)
-        print("Enviando CONNACK...\n")
+            # Resposta de Connect Acception (CONNACK)
+            connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
+            client_socket.send(connack_response)
+            print("Enviando CONNACK...\n")
+        else:
+            if self.he_context is None:
+                print("[MODO OTIMIZADO] Nenhuma chave criada. Gerando Par de Chaves Criptográficas...")
+                self.he_context = self.generate_context()
+            else:
+                print("[MODO OTIMIZADO] Chave criptográfica já criada.")
+            
+            self.clients[client_socket] = {"client_id": fields["client_id"]}
+
+            # Resposta de Connect Acception (CONNACK)
+            connack_response = struct.pack("!BB", 32, 2) + struct.pack("!BB", 0, 0)
+            client_socket.send(connack_response)
+            print("Enviando CONNACK...\n")
     
 
     @staticmethod
@@ -236,9 +253,14 @@ class MQTTHBroker:
         batches, pois o contexto ultrapassa os 400KB, na maioria dos casos.
         """
         if client_socket in self.clients.keys():
-            context, client_id = self.clients[client_socket]['he_context'], self.clients[client_socket]['client_id']
-            response_topic = f"he/public-key/{client_id}"
-            serialized_context = context.serialize(save_public_key = True, save_secret_key = False)
+            if self.strict_mode is False:   
+                context, client_id = self.he_context, self.clients[client_socket]['client_id']
+                response_topic = f"he/public-key/{client_id}"
+                serialized_context = context.serialize(save_public_key = True, save_secret_key = False)
+            else:
+                context, client_id = self.clients[client_socket]['he_context'], self.clients[client_socket]['client_id']
+                response_topic = f"he/public-key/{client_id}"
+                serialized_context = context.serialize(save_public_key = True, save_secret_key = False)
 
             total_size = len(serialized_context)
             num_batches = (total_size + BATCH_SIZE - 1) // BATCH_SIZE
@@ -296,5 +318,5 @@ class MQTTHBroker:
 
 
 if __name__ == "__main__":
-    broker = MQTTHBroker()
+    broker = MQTTHBroker(strict_mode=False)
     broker.start()
