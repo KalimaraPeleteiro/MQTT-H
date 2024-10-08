@@ -59,6 +59,8 @@ else:
     time.sleep(1)
     client.publish("he/retrieve-key", str(CLIENT_ID))
     time.sleep(2)
+    client.unsubscribe(f"he/public-key/{CLIENT_ID}")
+    time.sleep(2)
 
 
 print(f"\n--- Métricas ---")

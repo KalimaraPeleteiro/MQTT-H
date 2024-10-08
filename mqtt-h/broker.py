@@ -88,6 +88,8 @@ class MQTTHBroker:
                 self.handle_publish(client_socket, message)
             elif packet_type == 8:
                 self.handle_subscribe(client_socket, message)
+            elif packet_type == 10:
+                self.handle_unsubscribe(client_socket, message)
         
     
     def handle_connect(self, client_socket, message):
@@ -378,6 +380,65 @@ class MQTTHBroker:
             fields["qos"] = message[6 + topic_length]
         except (struct.error, IndexError) as e:
             print(f"Erro ao extrair campos da mensagem de inscrição: {e}.")
+            return None
+
+        return fields
+    
+
+    def handle_unsubscribe(self, client_socket, message):
+        """
+        Lida com requisições de desinscrição. Extrai os campos da mensagem e remove a inscrição do cliente.
+        Retorna uma confirmação UNSUBACK.
+
+        client_socket: O socket do cliente que enviou a mensagem.
+        message: Mensagem enviada.
+        """
+        print("\nDesinscrição Requisitada!")
+
+        fields = self.extract_unsubscribe_message_fields(message)
+        topic = fields['topic']
+
+        print(f'Um cliente está se desinscrevendo do tópico {topic}.')
+        
+        # Remove the client from the subscriptions
+        if topic in self.subscriptions and client_socket in self.subscriptions[topic]:
+            self.subscriptions[topic].remove(client_socket)
+            print(f"Cliente desinscrito do tópico '{topic}'.")
+        else:
+            print(f"Cliente não estava inscrito no tópico '{topic}'.")
+
+        # Enviando UNSUBACK (Unsubscription Confirmation)
+        packet_type = 0xB0  
+        message_id = fields['message_id'] 
+
+        unsuback_response = struct.pack("!BBH", packet_type, 2, message_id)
+
+        client_socket.send(unsuback_response)
+        print("Enviando UNSUBACK...\n")
+    
+
+    @staticmethod
+    def extract_unsubscribe_message_fields(message):
+        """
+        Lida com Pacotes de Desinscrição. O formato de um pacote UNSUBSCRIBE é:
+
+        - Header Fixo (1 Byte)
+        - Tamanho do Pacote (1 Byte)
+        - Identificador da Mensagem (2 Bytes)
+        - Tamanho do Nome do Tópico (2 Bytes)
+        - Nome do Tópico (N Bytes)
+        """
+        fields = {}
+
+        try:
+            message_id = struct.unpack("!H", message[2:4])[0]
+            topic_length = struct.unpack("!H", message[4:6])[0]
+            topic = message[6:6 + topic_length].decode('utf-8')
+
+            fields["message_id"] = message_id
+            fields["topic"] = topic
+        except (struct.error, IndexError) as e:
+            print(f"Erro ao extrair campos da mensagem de desinscrição: {e}.")
             return None
 
         return fields
