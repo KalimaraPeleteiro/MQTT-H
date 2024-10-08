@@ -89,6 +89,9 @@ class MQTTHBroker:
         Lida com requisições de conexão. Extrai os campos da mensagem, e se ela for válida, gera um par de chaves criptográficas e dedica aquele cliente.
         Caso a mensagem seja válida, devolve um resultado de Conexão Aceita (CONNACK) para o cliente.
 
+        Em modo estrito, um contexto criptográfico é criado para cada cliente.
+        Em modo otimizado, um contexto é compartilhado para todos.
+
         client_socket: O socket do cliente que enviou a mensagem.
         message: Mensagem enviada.
         """
@@ -251,6 +254,9 @@ class MQTTHBroker:
         Resposta à requisições feitas ao canal de retorno de chave. Envia o contexto 
         homomórfico público, caso o cliente tenha sido registrado. O envio é realizado em 
         batches, pois o contexto ultrapassa os 400KB, na maioria dos casos.
+
+        Em modo estrito, o contexto criptográfico particular daquele cliente é passado.
+        Em modo otimizado, é enviado um contexto compartilhado por todos os clientes.
         """
         if client_socket in self.clients.keys():
             if self.strict_mode is False:   
