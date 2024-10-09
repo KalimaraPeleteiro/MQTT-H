@@ -41,6 +41,9 @@ def on_message(client, userdata, msg):
             he_context = ts.Context.load(complete_context)
             print(f"Contexto Completo Recebido e Re-estruturado.")
 
+    else:
+        print(f"Mensagem Recebida no tópico {msg.topic}: {msg.payload}")
+
 
 client = mqtt.Client(client_id=f"client-{CLIENT_ID}")
 client.user_data_set({'connect_start_time': time.time()})
@@ -55,15 +58,8 @@ if client.connect(BROKER, BROKER_PORT) != 0:
     sys.exit(0)
 else:
     client.loop_start()
-    client.subscribe(f"he/public-key/{CLIENT_ID}")
     client.subscribe("teste")
-    time.sleep(1)
-    client.publish("he/retrieve-key", str(CLIENT_ID))
-    time.sleep(2)
-    client.unsubscribe(f"he/public-key/{CLIENT_ID}")
-    time.sleep(2)
-    client.publish("teste", "mensagem-secreta")
-
+    time.sleep(100)
 
 print(f"\n--- Métricas ---")
 print(f"Tempo para Conexão: {CONNECTION_TIME:.4f} segundos")

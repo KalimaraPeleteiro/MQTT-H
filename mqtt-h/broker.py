@@ -231,6 +231,11 @@ class MQTTHBroker:
 
         if fields['topic'] == "he/retrieve-key":
             self.send_he_context(client_socket)
+        else:
+            if fields['topic'] in self.subscriptions:
+                for subscriber in self.subscriptions[fields['topic']]:
+                    self.send_message(subscriber, fields['topic'], fields['payload'])
+
     
 
     @staticmethod
@@ -328,6 +333,33 @@ class MQTTHBroker:
             if length == 0:
                 break
         return encoded
+    
+
+    def send_message(self, client_socket, topic, payload):
+        """
+        Envia a mensagem para o cliente inscrito.
+
+        client_socket: O socket do cliente que receberá a mensagem.
+        topic: O tópico da mensagem.
+        payload: O conteúdo da mensagem.
+        """
+        packet_type = 0x30  # PUBLISH
+        topic_len = len(topic)
+        remaining_length = 2 + topic_len + len(payload)  
+
+        # Header Fixo
+        response_message = struct.pack("!B", packet_type)
+        response_message += self.encode_remaining_length(remaining_length)
+
+        # Tamanho Variável
+        response_message += struct.pack("!H", topic_len)
+        response_message += topic.encode()
+
+        # Payload
+        response_message += payload
+
+        client_socket.send(response_message)
+        print(f"Mensagem enviada para o cliente em '{topic}', payload: {payload.decode('utf-8')}")
     
 
     def handle_subscribe(self, client_socket, message):
@@ -447,5 +479,5 @@ class MQTTHBroker:
 
 
 if __name__ == "__main__":
-    broker = MQTTHBroker(strict_mode=False)
+    broker = MQTTHBroker()
     broker.start()
