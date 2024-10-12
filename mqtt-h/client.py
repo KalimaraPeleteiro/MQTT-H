@@ -1,9 +1,9 @@
 """O cliente é um agente que se conecta ao broker para enviar mensagens pelo canal."""
 import time
-import json
 import uuid
 import sys
-import logging  
+import logging 
+import json 
 
 import tenseal as ts
 import paho.mqtt.client as mqtt
@@ -56,11 +56,19 @@ if client.connect(BROKER, BROKER_PORT) != 0:
 else:
     client.loop_start()
     client.subscribe(f"he/public-key/{CLIENT_ID}")
+    time.sleep(1)
     client.subscribe("teste")
     time.sleep(1)
     client.publish("he/retrieve-key", str(CLIENT_ID))
     time.sleep(2)
     client.unsubscribe(f"he/public-key/{CLIENT_ID}")
+    time.sleep(2)
+    json_payload = {
+        "Mensagem": "Esse é um teste",
+        "ID": str(CLIENT_ID)
+    }
+    json_string = json.dumps(json_payload)  # Convert dict to JSON string
+    client.publish("teste", payload=json_string)  # Publish JSON string
     time.sleep(2)
 
 
