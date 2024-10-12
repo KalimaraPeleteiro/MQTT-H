@@ -1,3 +1,4 @@
+"""Testando o tamanho de um contexto Tenseal em Bytes, para Envio via MQTT."""
 import tenseal as ts
 
 context = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=4096)
