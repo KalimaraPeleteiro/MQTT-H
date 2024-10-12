@@ -47,6 +47,11 @@ class MQTTHBroker:
         if self.subscriptions != {}:
             print("Inscrições")
             print(self.subscriptions)
+        if self.clients != {}:
+            print("\nClientes")
+            print(self.clients)
+        if self.strict_mode is False:
+            print(f"\nContexto HE {self.he_context}")
         sys.exit(0)
     
 

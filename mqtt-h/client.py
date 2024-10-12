@@ -62,7 +62,6 @@ else:
     time.sleep(2)
     client.unsubscribe(f"he/public-key/{CLIENT_ID}")
     time.sleep(2)
-    client.publish("teste", "mensagem-secreta")
 
 
 print(f"\n--- Métricas ---")
