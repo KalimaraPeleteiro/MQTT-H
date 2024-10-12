@@ -8,6 +8,7 @@ import socket
 import struct
 import signal
 import sys
+import threading
 
 import tenseal as ts
 
@@ -69,7 +70,9 @@ class MQTTHBroker:
             try:
                 client_socket, address = self.server_socket.accept()
                 print(f"Conexão vinda de {address} detectada.")
-                self.handle_client(client_socket)
+                
+                client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
+                client_thread.start()
             except socket.timeout:
                 continue
     
