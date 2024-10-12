@@ -1,6 +1,5 @@
 """Estudando uma maneira de validar se um conteúdo encriptado pertence a um determinado contexto."""
 import tenseal as ts
-import numpy as np
 
 def create_context():
     context = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=4096, plain_modulus=256)
